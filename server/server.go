@@ -13,6 +13,8 @@ import (
 	"github.com/pragkent/hydra-wework/wework"
 )
 
+const requiredScope = "openid"
+
 type Server struct {
 	cfg   *Config
 	mux   *mux.Router
@@ -96,7 +98,7 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 
 	response, err = s.hcli.AcceptOAuth2ConsentRequest(reqID, swagger.ConsentRequestAcceptance{
 		Subject:          uid,
-		GrantScopes:      request.RequestedScopes,
+		GrantScopes:      getScopes(request.RequestedScopes),
 		AccessTokenExtra: extraVars,
 		IdTokenExtra:     extraVars,
 	})
@@ -118,6 +120,24 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 
 func consentID(r *http.Request) string {
 	return r.URL.Query().Get("consent")
+}
+
+func getScopes(scopes []string) []string {
+	if !contains(scopes, requiredScope) {
+		scopes = append(scopes, requiredScope)
+	}
+
+	return scopes
+}
+
+func contains(values []string, s string) bool {
+	for _, i := range values {
+		if i == s {
+			return true
+		}
+	}
+
+	return false
 }
 
 func authURL(r *http.Request) string {
