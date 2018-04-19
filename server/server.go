@@ -103,7 +103,7 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response, err = s.hcli.AcceptOAuth2ConsentRequest(reqID, swagger.ConsentRequestAcceptance{
-		Subject:          uid,
+		Subject:          subjectOf(uid),
 		GrantScopes:      getScopes(request.RequestedScopes),
 		AccessTokenExtra: extraVars,
 		IdTokenExtra:     extraVars,
@@ -126,6 +126,10 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 
 func consentID(r *http.Request) string {
 	return r.URL.Query().Get("consent")
+}
+
+func subjectOf(uid string) string {
+	return "user:" + uid
 }
 
 func getScopes(scopes []string) []string {
@@ -160,7 +164,7 @@ func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) erro
 	vars["email"] = userResp.Email
 	vars["name"] = userResp.EnglishName
 
-	gs, _, err := s.hcli.ListGroups(uid, 100, 0)
+	gs, _, err := s.hcli.ListGroups(subjectOf(uid), 100, 0)
 	if err != nil {
 		return fmt.Errorf("Get hydra groups failed. %v", err)
 	}
