@@ -4,7 +4,7 @@ import "errors"
 
 type Config struct {
 	BindAddr          string
-	SessionKey        string
+	CookieSecret      string
 	HydraURL          string
 	HydraClientID     string
 	HydraClientSecret string
@@ -15,8 +15,8 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
-	if c.SessionKey == "" {
-		return errors.New("session key is missing")
+	if c.CookieSecret == "" {
+		return errors.New("cookie secret is missing")
 	}
 
 	if c.HydraURL == "" {

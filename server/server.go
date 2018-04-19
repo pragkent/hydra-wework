@@ -46,7 +46,7 @@ func New(c *Config) (*Server, error) {
 		mux:   mux.NewRouter(),
 		hcli:  hcli,
 		wcli:  wework.NewClient(c.WeworkCorpID, c.WeworkAgentID, c.WeworkSecret),
-		store: sessions.NewCookieStore([]byte(c.SessionKey)),
+		store: sessions.NewCookieStore([]byte(c.CookieSecret)),
 	}
 
 	srv.mux.HandleFunc(pathConsent, srv.ConsentHandler)

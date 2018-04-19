@@ -14,7 +14,7 @@ var version = flag.Bool("version", false, "version")
 
 func init() {
 	flag.StringVar(&cfg.BindAddr, "bind", ":6666", "bind address")
-	flag.StringVar(&cfg.SessionKey, "session-key", "", "session secret key")
+	flag.StringVar(&cfg.CookieSecret, "cookie-secret", "", "session cookie secret key")
 	flag.StringVar(&cfg.HydraURL, "hydra-url", "", "hydra url")
 	flag.StringVar(&cfg.HydraClientID, "hydra-client-id", "", "hydra client id")
 	flag.StringVar(&cfg.HydraClientSecret, "hydra-client-secret", "", "hydra client secret")
