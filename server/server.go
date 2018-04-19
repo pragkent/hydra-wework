@@ -13,7 +13,13 @@ import (
 	"github.com/pragkent/hydra-wework/wework"
 )
 
-const requiredScope = "openid"
+const (
+	requiredScope = "openid"
+
+	pathConsent  = "/wework/consent"
+	pathAuth     = "/wework/auth"
+	pathCallback = "/wework/callback"
+)
 
 type Server struct {
 	cfg   *Config
@@ -43,9 +49,9 @@ func New(c *Config) (*Server, error) {
 		store: sessions.NewCookieStore([]byte(c.SessionKey)),
 	}
 
-	srv.mux.HandleFunc("/consent", srv.ConsentHandler)
-	srv.mux.HandleFunc("/wework/auth", srv.AuthHandler)
-	srv.mux.HandleFunc("/wework/callback", srv.CallbackHandler)
+	srv.mux.HandleFunc(pathConsent, srv.ConsentHandler)
+	srv.mux.HandleFunc(pathAuth, srv.AuthHandler)
+	srv.mux.HandleFunc(pathCallback, srv.CallbackHandler)
 
 	return srv, nil
 }
@@ -85,7 +91,7 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 	uid, ok := session.Values["uid"].(string)
 	if !ok || uid == "" {
 		log.Printf("User not signed in")
-		http.Redirect(w, r, authURL(r), http.StatusFound)
+		http.Redirect(w, r, getAuthURL(consentID(r)), http.StatusFound)
 		return
 	}
 
@@ -140,16 +146,8 @@ func contains(values []string, s string) bool {
 	return false
 }
 
-func authURL(r *http.Request) string {
-	return "/wework/auth?consent=" + consentID(r)
-}
-
-func (s *Server) scheme() string {
-	if s.cfg.HTTPS {
-		return "https"
-	} else {
-		return "http"
-	}
+func getAuthURL(consentID string) string {
+	return fmt.Sprintf("%s?consent=%s", pathAuth, consentID)
 }
 
 func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) error {
@@ -178,11 +176,20 @@ func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) erro
 }
 
 func (s *Server) AuthHandler(w http.ResponseWriter, r *http.Request) {
-	callbackURL := fmt.Sprintf("%s://%s/wework/callback", s.scheme(), r.Host)
 	state := r.URL.Query().Get("consent")
+	callbackURL := getWeworkCallbackURL(s.cfg.HTTPS, r.Host)
 
 	u := s.wcli.GetOAuthURL(callbackURL, state)
 	http.Redirect(w, r, u, http.StatusFound)
+}
+
+func getWeworkCallbackURL(https bool, host string) string {
+	scheme := "https"
+	if !https {
+		scheme = "http"
+	}
+
+	return fmt.Sprintf("%s://%s%s", scheme, host, pathCallback)
 }
 
 func (s *Server) CallbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -199,8 +206,12 @@ func (s *Server) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	session.Values["uid"] = uid
 	session.Save(r, w)
 
-	u := "/consent?consent=" + r.URL.Query().Get("state")
-	http.Redirect(w, r, u, http.StatusFound)
+	consentURL := getConsentURL(r.URL.Query().Get("state"))
+	http.Redirect(w, r, consentURL, http.StatusFound)
+}
+
+func getConsentURL(consentID string) string {
+	return fmt.Sprintf("%s?consent=%s", pathConsent, consentID)
 }
 
 func (s *Server) session(r *http.Request) *sessions.Session {
