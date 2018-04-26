@@ -42,12 +42,15 @@ func New(c *Config) (*Server, error) {
 		return nil, err
 	}
 
+	store := sessions.NewCookieStore([]byte(c.CookieSecret))
+	store.MaxAge(86400)
+
 	srv := &Server{
 		cfg:   c,
 		mux:   mux.NewRouter(),
 		hcli:  hcli,
 		wcli:  wework.NewClient(c.WeworkCorpID, c.WeworkAgentID, c.WeworkSecret),
-		store: sessions.NewCookieStore([]byte(c.CookieSecret)),
+		store: store,
 	}
 
 	srv.mux.HandleFunc(pathConsent, srv.ConsentHandler)
