@@ -5,12 +5,21 @@ import (
 	"net/url"
 )
 
+type UserStatus int
+
+const (
+	UserActive   UserStatus = 1
+	UserDisabled UserStatus = 2
+	UserInactive UserStatus = 3
+)
+
 type GetUserResponse struct {
-	Code        int    `json:"errcode,omitempty"`
-	Message     string `json:"errmsg,omitempty"`
-	UserID      string `json:"userid,omitempty"`
-	EnglishName string `json:"english_name,omitempty"`
-	Email       string `json:"email,omitempty"`
+	Code        int        `json:"errcode,omitempty"`
+	Message     string     `json:"errmsg,omitempty"`
+	UserID      string     `json:"userid,omitempty"`
+	EnglishName string     `json:"english_name,omitempty"`
+	Email       string     `json:"email,omitempty"`
+	Status      UserStatus `json:"status,omitempty"`
 }
 
 func (c *Client) GetUser(uid string) (*GetUserResponse, error) {

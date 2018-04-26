@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -158,6 +159,10 @@ func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) erro
 	userResp, err := s.wcli.GetUser(uid)
 	if err != nil {
 		return fmt.Errorf("Get wework user failed. %v", err)
+	}
+
+	if userResp.Status != wework.UserActive {
+		return errors.New("User is not active")
 	}
 
 	vars["username"] = userResp.UserID
