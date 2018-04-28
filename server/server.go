@@ -169,8 +169,9 @@ func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) erro
 	}
 
 	vars["username"] = userResp.UserID
-	vars["email"] = userResp.Email
 	vars["name"] = userResp.EnglishName
+	vars["email"] = userResp.Email
+	vars["email_verified"] = true
 
 	gs, _, err := s.hcli.ListGroups(subjectOf(uid), 100, 0)
 	if err != nil {
