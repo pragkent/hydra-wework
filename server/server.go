@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
@@ -15,7 +16,8 @@ import (
 )
 
 const (
-	requiredScope = "openid"
+	openIDScope      = "openid"
+	userAgentKeyword = "wxwork"
 
 	pathConsent  = "/wework/consent"
 	pathAuth     = "/wework/auth"
@@ -99,19 +101,21 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extraVars := make(map[string]interface{})
-	if err := s.getTokenExtraVars(uid, extraVars); err != nil {
+	extraVars, err := s.getTokenVars(uid)
+	if err != nil {
 		log.Printf("Get token extra vars error: %v", err)
-		http.Error(w, "Get token extra vars error", http.StatusInternalServerError)
+		http.Error(w, "Get user profile error", http.StatusInternalServerError)
 		return
 	}
 
-	response, err = s.hcli.AcceptOAuth2ConsentRequest(reqID, swagger.ConsentRequestAcceptance{
-		Subject:          subjectOf(uid),
-		GrantScopes:      getScopes(request.RequestedScopes),
-		AccessTokenExtra: extraVars,
-		IdTokenExtra:     extraVars,
-	})
+	response, err = s.hcli.AcceptOAuth2ConsentRequest(
+		reqID,
+		swagger.ConsentRequestAcceptance{
+			Subject:          subjectOf(uid),
+			GrantScopes:      getScopes(request.RequestedScopes),
+			AccessTokenExtra: extraVars,
+			IdTokenExtra:     extraVars,
+		})
 
 	if err != nil {
 		log.Printf("Accept consent request failed. %v", err)
@@ -137,11 +141,13 @@ func consentID(r *http.Request) string {
 }
 
 func getScopes(scopes []string) []string {
-	if !contains(scopes, requiredScope) {
-		scopes = append(scopes, requiredScope)
+	if contains(scopes, openIDScope) {
+		return scopes
 	}
 
-	return scopes
+	r := []string{openIDScope}
+	r = append(r, scopes...)
+	return r
 }
 
 func contains(values []string, s string) bool {
@@ -158,7 +164,21 @@ func getAuthURL(consentID string) string {
 	return fmt.Sprintf("%s?consent=%s", pathAuth, consentID)
 }
 
-func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) error {
+func (s *Server) getTokenVars(uid string) (map[string]interface{}, error) {
+	vars := make(map[string]interface{})
+
+	if err := s.collectUserInfo(uid, vars); err != nil {
+		return nil, err
+	}
+
+	if err := s.collectUserGroups(uid, vars); err != nil {
+		return nil, err
+	}
+
+	return vars, nil
+}
+
+func (s *Server) collectUserInfo(uid string, vars map[string]interface{}) error {
 	userResp, err := s.wcli.GetUser(uid)
 	if err != nil {
 		return fmt.Errorf("Get wework user failed. %v", err)
@@ -173,9 +193,13 @@ func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) erro
 	vars["email"] = userResp.Email
 	vars["email_verified"] = true
 
+	return nil
+}
+
+func (s *Server) collectUserGroups(uid string, vars map[string]interface{}) error {
 	gs, _, err := s.hcli.ListGroups(subjectOf(uid), 100, 0)
 	if err != nil {
-		return fmt.Errorf("Get hydra groups failed. %v", err)
+		return fmt.Errorf("Get hydra warden groups failed. %v", err)
 	}
 
 	var groups []string
@@ -192,8 +216,18 @@ func (s *Server) AuthHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("consent")
 	callbackURL := getWeworkCallbackURL(s.cfg.HTTPS, r.Host)
 
-	u := s.wcli.GetOAuthURL(callbackURL, state)
+	var u string
+	if isInWework(r) {
+		u = s.wcli.GetOAuthURL(callbackURL, state)
+	} else {
+		u = s.wcli.GetQRConnectURL(callbackURL, state)
+	}
+
 	http.Redirect(w, r, u, http.StatusFound)
+}
+
+func isInWework(r *http.Request) bool {
+	return strings.Contains(r.UserAgent(), userAgentKeyword)
 }
 
 func getWeworkCallbackURL(https bool, host string) string {
