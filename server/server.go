@@ -3,10 +3,10 @@ package server
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 
+	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/ory/hydra/sdk/go/hydra"
@@ -66,27 +66,27 @@ func (s *Server) ListenAndServe() error {
 		return err
 	}
 
-	log.Printf("Listening on %v", lis.Addr())
+	glog.Infof("Listening on %v", lis.Addr())
 	return http.Serve(lis, s.mux)
 }
 
 func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 	reqID := consentID(r)
 	if reqID == "" {
-		log.Printf("Consent request id is missing")
+		glog.Errorf("Consent request id is missing")
 		http.Error(w, "Consent request id is missing", http.StatusBadRequest)
 		return
 	}
 
 	request, response, err := s.hcli.GetOAuth2ConsentRequest(reqID)
 	if err != nil {
-		log.Printf("Get consent request failed. %v", err)
+		glog.Errorf("Get consent request failed. %v", err)
 		http.Error(w, "Get consent request failed", http.StatusBadRequest)
 		return
 	}
 
 	if response.StatusCode != http.StatusOK {
-		log.Printf("Get consent request unexpected http status: %v", response.Status)
+		glog.Errorf("Get consent request unexpected http status: %v", response.Status)
 		http.Error(w, "Get consent request error", http.StatusBadRequest)
 		return
 	}
@@ -94,14 +94,14 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 	session := s.session(r)
 	uid, ok := session.Values["uid"].(string)
 	if !ok || uid == "" {
-		log.Printf("User not signed in")
+		glog.Errorf("User not signed in")
 		http.Redirect(w, r, getAuthURL(consentID(r)), http.StatusFound)
 		return
 	}
 
 	extraVars := make(map[string]interface{})
 	if err := s.getTokenExtraVars(uid, extraVars); err != nil {
-		log.Printf("Get token extra vars error: %v", err)
+		glog.Errorf("Get token extra vars error: %v", err)
 		http.Error(w, "Get token extra vars error", http.StatusInternalServerError)
 		return
 	}
@@ -114,13 +114,13 @@ func (s *Server) ConsentHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		log.Printf("Accept consent request failed. %v", err)
+		glog.Errorf("Accept consent request failed. %v", err)
 		http.Error(w, "Accept consent request error", http.StatusInternalServerError)
 		return
 	}
 
 	if response.StatusCode != http.StatusNoContent {
-		log.Printf("Accept consent request unexpected http status: %v", response.Status)
+		glog.Errorf("Accept consent request unexpected http status: %v", response.Status)
 		http.Error(w, "Accept consent request error", http.StatusInternalServerError)
 		return
 	}
@@ -185,6 +185,8 @@ func (s *Server) getTokenExtraVars(uid string, vars map[string]interface{}) erro
 
 	vars["groups"] = groups
 
+	glog.Infof("User authenticated. %v", vars)
+
 	return nil
 }
 
@@ -209,12 +211,12 @@ func (s *Server) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	uid, err := s.wcli.GetUserInfo(code)
 	if err != nil {
-		log.Printf("Get user info failed. %v", err)
+		glog.Errorf("Get user info failed. %v", err)
 		http.Error(w, "Get user info failed", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("User signed in as %v", uid)
+	glog.Infof("User signed in as wework user %v", uid)
 	session := s.session(r)
 	session.Values["uid"] = uid
 	session.Save(r, w)

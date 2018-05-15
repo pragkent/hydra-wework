@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/golang/glog"
 )
 
 const (
@@ -15,7 +16,7 @@ const (
 )
 
 func (c *Client) getJSON(url string, resp interface{}) error {
-	log.Printf("Get %s", url)
+	glog.V(4).Infof("Get %s", url)
 
 	reqURL, err := c.urlWithToken(url)
 	if err != nil {
@@ -33,7 +34,7 @@ func (c *Client) getJSON(url string, resp interface{}) error {
 		return fmt.Errorf("http response read error: %v", err)
 	}
 
-	log.Printf("Response %d %s", httpResp.StatusCode, body)
+	glog.V(4).Infof("Response %d %s", httpResp.StatusCode, body)
 
 	if httpResp.StatusCode != http.StatusOK {
 		return fmt.Errorf("illegal http status code: %v", httpResp.StatusCode)
@@ -60,7 +61,7 @@ func (c *Client) postJSON(url string, req interface{}, resp interface{}) error {
 		return err
 	}
 
-	log.Printf("Post %s Body: %s", url, buf.String())
+	glog.V(4).Infof("Post %s Body: %s", url, buf.String())
 
 	httpResp, err := http.Post(reqURL, ContentTypeJson, buf)
 	if err != nil {
@@ -73,7 +74,7 @@ func (c *Client) postJSON(url string, req interface{}, resp interface{}) error {
 		return fmt.Errorf("http response read error: %v", err)
 	}
 
-	log.Printf("Response %d %s", httpResp.StatusCode, body)
+	glog.V(4).Infof("Response %d %s", httpResp.StatusCode, body)
 
 	if httpResp.StatusCode != http.StatusOK {
 		return fmt.Errorf("illegal http status code: %v", httpResp.StatusCode)

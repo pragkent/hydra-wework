@@ -3,45 +3,59 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
+	"strconv"
 
+	"github.com/golang/glog"
 	"github.com/pragkent/hydra-wework/server"
 )
 
-var cfg = &server.Config{}
-var version = flag.Bool("version", false, "version")
-
-func init() {
-	flag.StringVar(&cfg.BindAddr, "bind", ":6666", "bind address")
-	flag.StringVar(&cfg.CookieSecret, "cookie-secret", "", "session cookie secret key")
-	flag.StringVar(&cfg.HydraURL, "hydra-url", "", "hydra url")
-	flag.StringVar(&cfg.HydraClientID, "hydra-client-id", "", "hydra client id")
-	flag.StringVar(&cfg.HydraClientSecret, "hydra-client-secret", "", "hydra client secret")
-	flag.StringVar(&cfg.WeworkCorpID, "wework-corp-id", "", "wework corp id")
-	flag.StringVar(&cfg.WeworkAgentID, "wework-agent-id", "", "wework agent id")
-	flag.StringVar(&cfg.WeworkSecret, "wework-secret", "", "wework secret")
-	flag.BoolVar(&cfg.HTTPS, "https", true, "use https")
-}
+var version bool
 
 func main() {
-	flag.Parse()
-
-	if *version {
-		fmt.Print(Version())
-		return
-	}
-
-	if err := run(); err != nil {
-		log.Printf("%v", err)
-		os.Exit(1)
+	cfg := parseFlags()
+	if err := run(cfg); err != nil {
+		glog.Exitf("%v", err)
 	}
 
 	os.Exit(0)
 }
 
-func run() error {
+func parseFlags() *server.Config {
+	cfg := &server.Config{}
+	var fs = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
+	fs.StringVar(&cfg.BindAddr, "bind", ":6666", "bind address")
+	fs.StringVar(&cfg.CookieSecret, "cookie-secret", "", "session cookie secret key")
+	fs.StringVar(&cfg.HydraURL, "hydra-url", "", "hydra url")
+	fs.StringVar(&cfg.HydraClientID, "hydra-client-id", "", "hydra client id")
+	fs.StringVar(&cfg.HydraClientSecret, "hydra-client-secret", "", "hydra client secret")
+	fs.StringVar(&cfg.WeworkCorpID, "wework-corp-id", "", "wework corp id")
+	fs.StringVar(&cfg.WeworkAgentID, "wework-agent-id", "", "wework agent id")
+	fs.StringVar(&cfg.WeworkSecret, "wework-secret", "", "wework secret")
+	fs.BoolVar(&cfg.HTTPS, "https", true, "use https")
+
+	version := fs.Bool("version", false, "version")
+	verbosity := fs.Int("v", 0, "log verbvosity level")
+
+	fs.Parse(os.Args[1:])
+
+	if *version {
+		fmt.Print(Version())
+		return nil
+	}
+
+	initLogging(*verbosity)
+	return cfg
+}
+
+func initLogging(verbosity int) {
+	// initlaizing glog
+	flag.Set("logtostderr", "true")
+	flag.Set("v", strconv.Itoa(verbosity))
+}
+
+func run(cfg *server.Config) error {
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("Config validate error: %v", err)
 	}
