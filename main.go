@@ -50,6 +50,8 @@ func parseFlags() *server.Config {
 }
 
 func initLogging(verbosity int) {
+	flag.Parse()
+
 	// initlaizing glog
 	flag.Set("logtostderr", "true")
 	flag.Set("v", strconv.Itoa(verbosity))
