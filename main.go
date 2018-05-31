@@ -10,18 +10,20 @@ import (
 	"github.com/pragkent/hydra-wework/server"
 )
 
-var version bool
-
 func main() {
-	cfg := parseFlags()
+	cfg, version := parseFlags()
+
+	if version {
+		fmt.Print(Version())
+		return
+	}
+
 	if err := run(cfg); err != nil {
 		glog.Exitf("%v", err)
 	}
-
-	os.Exit(0)
 }
 
-func parseFlags() *server.Config {
+func parseFlags() (*server.Config, bool) {
 	cfg := &server.Config{}
 	var fs = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
@@ -40,13 +42,8 @@ func parseFlags() *server.Config {
 
 	fs.Parse(os.Args[1:])
 
-	if *version {
-		fmt.Print(Version())
-		return nil
-	}
-
 	initLogging(*verbosity)
-	return cfg
+	return cfg, *version
 }
 
 func initLogging(verbosity int) {
